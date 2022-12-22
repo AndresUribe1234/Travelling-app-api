@@ -54,16 +54,26 @@ app.get("/api/tours/:id", (req, res) => {
 });
 
 app.patch("/api/tours/:id", (req, res) => {
-  console.log(req.body);
-  const tourId = tours.find((ele) => ele._id === req.params.id);
+  console.log(req.params);
+  const tourId = tours.find((ele) => {
+    if (!+req.params.id) {
+      return ele._id === req.params.id;
+    } else {
+      console.log("before carsh", +req.params.id);
+      return ele._id === +req.params.id;
+    }
+  });
+
   const tourArrayId = tours.map((ele) => ele._id);
-  const positionId = tourArrayId.indexOf(req.params.id);
+  const positionId = tourArrayId.indexOf(
+    !+req.params.id ? req.params.id : +req.params.id
+  );
 
   if (tourId) {
     Object.keys(req.body).forEach((ele, ind) => {
       tours[positionId][`${ele}`] = req.body[`${ele}`];
     });
-    console.log(tours[positionId]);
+
     fs.writeFile(
       `${__dirname}/dev-data/tours.json`,
       JSON.stringify(tours),
@@ -72,6 +82,44 @@ app.patch("/api/tours/:id", (req, res) => {
           status: "success",
           length: 1,
           data: tours[positionId],
+        });
+        console.log(err);
+      }
+    );
+  } else {
+    res.status(404).json({
+      status: "id does not exist",
+    });
+  }
+});
+
+app.delete("/api/tours/:id", (req, res) => {
+  console.log(req.params);
+  const tourId = tours.find((ele) => {
+    if (!+req.params.id) {
+      return ele._id === req.params.id;
+    } else {
+      console.log("before carsh", +req.params.id);
+      return ele._id === +req.params.id;
+    }
+  });
+
+  const tourArrayId = tours.map((ele) => ele._id);
+  const positionId = tourArrayId.indexOf(
+    !+req.params.id ? req.params.id : +req.params.id
+  );
+
+  if (tourId) {
+    const elementRemoved = tours.splice(positionId, 1);
+    console.log(elementRemoved);
+    fs.writeFile(
+      `${__dirname}/dev-data/tours.json`,
+      JSON.stringify(tours),
+      (err) => {
+        res.status(200).json({
+          status: "success",
+          length: 1,
+          elementRemoved: elementRemoved,
         });
         console.log(err);
       }
