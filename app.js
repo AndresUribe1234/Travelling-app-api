@@ -1,134 +1,53 @@
 const express = require("express");
 const fs = require("fs");
+const morgan = require("morgan");
+const dotenv = require("dotenv");
+const mongoose = require("mongoose");
+
+const tourRouter = require("./routes/tours");
+const userRouter = require("./routes/users");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+dotenv.config({ path: `./config.env` });
+
+const DB = process.env.DATABASE.replace(
+  "<PASSWORD>",
+  process.env.DATABASE_PASSWORD
+);
+
+console.log(`The DB connection is:
+
+${DB}
+`);
+mongoose.connect(DB).then((con) => {
+  console.log("DB connection successful");
+});
+
+// Middleware
 app.use(express.json());
 
-const tours = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/tours.json`));
-
-app.get("/api/tours", (req, res) => {
-  res.status(200).json({
-    status: "success",
-    length: Object.keys(tours).length,
-    data: { tours },
-  });
+app.use((req, res, next) => {
+  req.requestTimeMade = new Date().toUTCString();
+  console.log(req.requestTimeMade);
+  next();
 });
 
-app.post("/api/tours", (req, res) => {
-  const newId = tours[tours.length - 1]._id + 1;
-  const newTour = Object.assign({ _id: newId }, req.body);
-  tours.push(newTour);
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
-  fs.writeFile(
-    `${__dirname}/dev-data/tours.json`,
-    JSON.stringify(tours),
-    (err) => {
-      res.status(201).json({
-        status: "success",
-        length: Object.keys(tours).length,
-        data: { tours },
-      });
-      console.log(err);
-    }
-  );
-});
+app.use(express.static(`${__dirname}/public`));
 
-app.get("/api/tours/:id", (req, res) => {
-  console.log(req.params);
-  console.log(req.params.id);
-  const tourId = tours.find((ele) => ele._id === req.params.id);
+// console.log(process.env);
 
-  if (tourId) {
-    res.status(200).json({
-      status: "success",
-      length: 1,
-      data: { tourId },
-    });
-  } else {
-    res.status(404).json({
-      status: "id does not exist",
-    });
-  }
-});
+// Routes
 
-app.patch("/api/tours/:id", (req, res) => {
-  console.log(req.params);
-  const tourId = tours.find((ele) => {
-    if (!+req.params.id) {
-      return ele._id === req.params.id;
-    } else {
-      console.log("before carsh", +req.params.id);
-      return ele._id === +req.params.id;
-    }
-  });
+app.use("/api/tours", tourRouter);
+app.use("/api/users", userRouter);
 
-  const tourArrayId = tours.map((ele) => ele._id);
-  const positionId = tourArrayId.indexOf(
-    !+req.params.id ? req.params.id : +req.params.id
-  );
-
-  if (tourId) {
-    Object.keys(req.body).forEach((ele, ind) => {
-      tours[positionId][`${ele}`] = req.body[`${ele}`];
-    });
-
-    fs.writeFile(
-      `${__dirname}/dev-data/tours.json`,
-      JSON.stringify(tours),
-      (err) => {
-        res.status(200).json({
-          status: "success",
-          length: 1,
-          data: tours[positionId],
-        });
-        console.log(err);
-      }
-    );
-  } else {
-    res.status(404).json({
-      status: "id does not exist",
-    });
-  }
-});
-
-app.delete("/api/tours/:id", (req, res) => {
-  console.log(req.params);
-  const tourId = tours.find((ele) => {
-    if (!+req.params.id) {
-      return ele._id === req.params.id;
-    } else {
-      console.log("before carsh", +req.params.id);
-      return ele._id === +req.params.id;
-    }
-  });
-
-  const tourArrayId = tours.map((ele) => ele._id);
-  const positionId = tourArrayId.indexOf(
-    !+req.params.id ? req.params.id : +req.params.id
-  );
-
-  if (tourId) {
-    const elementRemoved = tours.splice(positionId, 1);
-    console.log(elementRemoved);
-    fs.writeFile(
-      `${__dirname}/dev-data/tours.json`,
-      JSON.stringify(tours),
-      (err) => {
-        res.status(200).json({
-          status: "success",
-          length: 1,
-          elementRemoved: elementRemoved,
-        });
-        console.log(err);
-      }
-    );
-  } else {
-    res.status(404).json({
-      status: "id does not exist",
-    });
-  }
-});
-
+// Server
 app.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
+
+module.exports = app;
