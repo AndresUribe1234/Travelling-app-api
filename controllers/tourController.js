@@ -1,12 +1,12 @@
-const express = require("express");
 const fs = require("fs");
-const { dirname } = require("path");
+const Tour = require(`${__dirname}/../models/tourModel.js`);
 
 const app = require(`${__dirname}/../app.js`);
 
-const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/../dev-data/tours.json`)
-);
+// Getting info from json file instead of database for testing purposes. After db connection is useless.
+// const tours = JSON.parse(
+//   fs.readFileSync(`${__dirname}/../dev-data/tours.json`)
+// );
 
 exports.getAllTours = (req, res) => {
   res.status(200).json({

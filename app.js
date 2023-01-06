@@ -18,9 +18,11 @@ const DB = process.env.DATABASE.replace(
 );
 
 console.log(`The DB connection is:
-
 ${DB}
 `);
+
+mongoose.set("strictQuery", false);
+
 mongoose.connect(DB).then((con) => {
   console.log("DB connection successful");
 });
