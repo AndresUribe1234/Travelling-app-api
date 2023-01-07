@@ -15,11 +15,7 @@ dotenv.config({ path: `./config.env` });
 const DB = process.env.DATABASE.replace(
   "<PASSWORD>",
   process.env.DATABASE_PASSWORD
-);
-
-console.log(`The DB connection is:
-${DB}
-`);
+).replace("<DBNAME>", process.env.DATABASE_NAME);
 
 mongoose.set("strictQuery", false);
 
