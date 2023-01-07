@@ -1,7 +1,5 @@
 const Tour = require(`${__dirname}/../models/tourModel.js`);
 
-const app = require(`${__dirname}/../app.js`);
-
 exports.getAllTours = async (req, res) => {
   try {
     const tours = await Tour.find();
