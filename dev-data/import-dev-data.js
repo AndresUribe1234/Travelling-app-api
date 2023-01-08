@@ -26,6 +26,7 @@ const importData = async () => {
         Object.keys(tours).length
       } documents created successful on the Tour collection!`
     );
+    process.exit();
   } catch (err) {
     console.log(err);
   }
@@ -35,6 +36,7 @@ const deleteData = async () => {
   try {
     await Tour.deleteMany();
     console.log(`Data deleted successful`);
+    process.exit();
   } catch (err) {
     console.log(err);
   }
@@ -47,4 +49,5 @@ if (process.argv[2] === "--import") {
 } else {
   console.log(process.argv);
   console.log("No function was runned");
+  process.exit();
 }
