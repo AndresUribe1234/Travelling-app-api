@@ -1,8 +1,8 @@
-const express = require("express");
-const fs = require("fs");
+const User = require(`${__dirname}/../models/userModel.js`);
 
-exports.getAllUsers = (req, res) => {
-  res.status(200).end(`You hit ${req.url} endpoint`);
+exports.getAllUsers = async (req, res, next) => {
+  const allUsers = await User.find();
+  res.status(201).json({ status: "success", user: { allUsers } });
 };
 
 exports.createNewUser = (req, res) => {

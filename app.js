@@ -37,6 +37,7 @@ app.use(express.json());
 app.use((req, res, next) => {
   req.requestTimeMade = new Date().toUTCString();
   console.log(req.requestTimeMade);
+  console.log(req.headers);
   next();
 });
 
