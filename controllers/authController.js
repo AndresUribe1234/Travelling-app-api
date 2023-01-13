@@ -1,7 +1,9 @@
 const User = require(`${__dirname}/../models/userModel.js`);
 const AppError = require(`${__dirname}/../utils/appError.js`);
+const sendEmail = require(`${__dirname}/../utils/email.js`);
 const jwt = require("jsonwebtoken");
 const util = require("util");
+const crypto = require("crypto");
 
 const signToken = function (id) {
   const token = jwt.sign({ id: id }, process.env.JWT_SECRET, {
@@ -39,6 +41,9 @@ exports.login = async (req, res, next) => {
     }
     // 2) Check if user exists && password is correct
     const user = await User.findOne({ email: email }).select("+password");
+    if (!user) {
+      throw new AppError("User does not exist", 404);
+    }
     const correct = await user.correctPassword(password, user.password);
     if (!user || !correct) {
       throw new AppError("Please insert a valid user and password", 404);
@@ -62,7 +67,6 @@ exports.protect = async function (req, res, next) {
       req.headers.authorization.startsWith("Bearer")
     ) {
       token = req.headers.authorization.split(" ")[1];
-      console.log(token);
     }
 
     if (!token) {
@@ -74,25 +78,144 @@ exports.protect = async function (req, res, next) {
       process.env.JWT_SECRET
     );
 
-    console.log("decoded", decoded);
-
     // 3)Check if user still exist
-    const freshUser = await User.findById(decoded.id);
-    if (!freshUser) {
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
       throw new AppError("User does not exist. Token is no longer valid.", 404);
     }
 
     // 4)Check if user changed password after jwt token was issued
-    if (freshUser.changedPasswordAfter(decoded.iat)) {
+    if (currentUser.changedPasswordAfter(decoded.iat)) {
       throw new AppError(
         "Password was updated. Token is no longer valid.",
         404
       );
     }
 
-    req.user = freshUser;
+    req.user = currentUser;
 
     next();
+  } catch (err) {
+    const error = new AppError(err.message, 404);
+    next(error);
+  }
+};
+
+exports.restrictTo = function (...roles) {
+  // Because of closure returned function has acces to roles
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      throw new AppError("You dont have the requested permission", 403);
+    }
+    next();
+  };
+};
+
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    // 1) Get user based on given email in the request
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      throw new AppError("Email does not exist.", 404);
+    }
+
+    // 2) Generate the random reset token
+    const resetToken = user.createPasswordResetToken();
+
+    await user.save({ validateBeforeSave: false });
+
+    // 3) Send to email
+    const resetURL = `${req.protocol}://${req.get(
+      "host"
+    )}/api/users/reset-password/${resetToken}`;
+
+    const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: \n\n${resetURL}.\n\nIf you didn't forget your password, please ignore this email!\n\nToken to reset password: ${resetToken}`;
+
+    await sendEmail({
+      email: user.email,
+      subject: "Your password reset token (valid for 10 min)",
+      message,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Token sent to email! Check your email.",
+    });
+  } catch (err) {
+    const error = new AppError(err.message, 404);
+    next(error);
+  }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    // 1) Get user based on the token
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    console.log("req.toke", req.params.token);
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    // 2) If token has not expired, and there is user, set the new password
+    if (!user) {
+      throw new AppError("Token is invalid or has expired", 400);
+    }
+    user.password = req.body.password;
+    user.passwordConfirm = req.body.passwordConfirm;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // 3) Update changedPasswordAt property for the user
+    // Middleware in user model
+
+    // 4) Log the user in, send JWT
+    const token = signToken(user._id);
+    res
+      .status(201)
+      .json({ status: "success: password was restored!", user: user, token });
+  } catch (err) {
+    const error = new AppError(err.message, 404);
+    next(error);
+  }
+};
+
+exports.updatePassword = async (req, res, next) => {
+  try {
+    // 1)Check if user exists
+    const user = await User.findOne({ email: req.body.email }).select(
+      "+password"
+    );
+    console.log(user);
+    if (!user) {
+      throw new AppError("User does not exit", 404);
+    }
+    // 2)Check if password is correct
+    const correct = await user.correctPassword(
+      req.body.password,
+      user.password
+    );
+
+    if (!correct) {
+      throw new AppError("Please enter the correct password!", 404);
+    }
+    // 3)Update password
+
+    if (user && correct) {
+      //   Model pre "save" middleware for password takes care of the new crypting for the new password
+      user.password = req.body.newPassword;
+      user.passwordConfirm = req.body.newPassword;
+      await user.save();
+    }
+    // 4)Sign in user
+    const token = signToken(user._id);
+
+    res.status(202).json({ status: "success: password was updated!", token });
   } catch (err) {
     const error = new AppError(err.message, 404);
     next(error);

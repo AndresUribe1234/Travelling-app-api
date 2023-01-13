@@ -10,8 +10,8 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-const tourRouter = require("./routes/tours");
-const userRouter = require("./routes/users");
+const tourRouter = require("./routes/toursRoute");
+const userRouter = require("./routes/usersRoute");
 const AppError = require("./utils/appError.js");
 const globalErrorHandler = require("./controllers/errorController.js");
 
@@ -37,7 +37,6 @@ app.use(express.json());
 app.use((req, res, next) => {
   req.requestTimeMade = new Date().toUTCString();
   console.log(req.requestTimeMade);
-  console.log(req.headers);
   next();
 });
 
