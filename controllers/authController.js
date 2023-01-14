@@ -5,11 +5,23 @@ const jwt = require("jsonwebtoken");
 const util = require("util");
 const crypto = require("crypto");
 
+const cookieOptions = {
+  expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  //   secure: true,
+  httpOnly: true,
+};
+
 const signToken = function (id) {
   const token = jwt.sign({ id: id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
   return token;
+};
+
+const createAndSendToken = function (user, statusCode, message, res) {
+  const token = signToken(user._id);
+  res.cookie("jwt", token, cookieOptions);
+  res.status(statusCode).json({ status: message, token });
 };
 
 exports.signup = async (req, res, next) => {
@@ -21,9 +33,8 @@ exports.signup = async (req, res, next) => {
       passwordConfirm: req.body.passwordConfirm,
     });
 
-    const token = signToken(newUser._id);
-
-    res.status(201).json({ status: "success", token, user: { newUser } });
+    // res.status(201).json({ status: "success", token, user: { newUser } });
+    createAndSendToken(newUser, 201, "User created", res);
   } catch (err) {
     const error = new AppError(err.message, 404);
     next(error);
@@ -50,8 +61,7 @@ exports.login = async (req, res, next) => {
     }
 
     // 3) If everything is ok, send token to client
-    const token = signToken(user._id);
-    res.status(201).json({ status: "success", token, user });
+    createAndSendToken(user, 201, "Success: You are logged in", res);
   } catch (err) {
     const error = new AppError(err.message, 404);
     next(error);
@@ -175,10 +185,7 @@ exports.resetPassword = async (req, res, next) => {
     // Middleware in user model
 
     // 4) Log the user in, send JWT
-    const token = signToken(user._id);
-    res
-      .status(201)
-      .json({ status: "success: password was restored!", user: user, token });
+    createAndSendToken(user, 201, "Success: password was restored!", res);
   } catch (err) {
     const error = new AppError(err.message, 404);
     next(error);
@@ -188,10 +195,8 @@ exports.resetPassword = async (req, res, next) => {
 exports.updatePassword = async (req, res, next) => {
   try {
     // 1)Check if user exists
-    const user = await User.findOne({ email: req.body.email }).select(
-      "+password"
-    );
-    console.log(user);
+    const user = await User.findById(req.user._id).select("+password");
+
     if (!user) {
       throw new AppError("User does not exit", 404);
     }
@@ -202,7 +207,7 @@ exports.updatePassword = async (req, res, next) => {
     );
 
     if (!correct) {
-      throw new AppError("Please enter the correct password!", 404);
+      throw new AppError("Please enter the correct password!", 401);
     }
     // 3)Update password
 
@@ -213,9 +218,7 @@ exports.updatePassword = async (req, res, next) => {
       await user.save();
     }
     // 4)Sign in user
-    const token = signToken(user._id);
-
-    res.status(202).json({ status: "success: password was updated!", token });
+    createAndSendToken(user, 201, "Password was updated!", res);
   } catch (err) {
     const error = new AppError(err.message, 404);
     next(error);

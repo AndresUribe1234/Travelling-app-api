@@ -3,6 +3,11 @@ const fs = require("fs");
 const morgan = require("morgan");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
+const hpp = require("hpp");
 
 process.on("uncaughtException", (err) => {
   console.log({ errorName: err.name, message: err.message, err });
@@ -32,7 +37,17 @@ mongoose.connect(DB).then((con) => {
 });
 
 // Middleware
-app.use(express.json());
+app.use(helmet());
+
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 60 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: "Too many request from this IP, please try again in an hour!",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+app.use("/api", limiter);
 
 app.use((req, res, next) => {
   req.requestTimeMade = new Date().toUTCString();
@@ -44,9 +59,30 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-app.use(express.static(`${__dirname}/public`));
+// Body parser, reading data from body into req.body
+app.use(express.json({ limit: "10kb" }));
 
-// console.log(process.env);
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(
+  hpp({
+    whitelist: [
+      "duration",
+      "ratingsQuantity",
+      "ratingsAverage",
+      "maxGroupSize",
+      "difficulty",
+      "price",
+    ],
+  })
+);
+
+app.use(express.static(`${__dirname}/public`));
 
 // Routes
 
