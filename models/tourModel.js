@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require("slugify");
+const User = require(`${__dirname}/userModel.js`);
 
 const tourSchema = new mongoose.Schema(
   {
@@ -92,6 +93,28 @@ const tourSchema = new mongoose.Schema(
       address: String,
       description: String,
     },
+    locations: [
+      {
+        type: {
+          type: String,
+          default: "Point",
+          enum: ["Point"],
+        },
+        coordinates: [Number],
+        address: String,
+        description: String,
+        day: Number,
+      },
+    ],
+    // Embedding guides
+    // guides: Array,
+    // Referencing guides
+    guides: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { strict: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
@@ -111,20 +134,23 @@ tourSchema.post("save", function (doc, next) {
   next();
 });
 
-// QUERY MIDDLEWARE
-// tourSchema.pre('find', function(next) {
-// tourSchema.pre(/^find/, function (next) {
-//   //   // this.find({ secretTour: { $ne: true } });
-//   this.start = Date.now();
+// Middleware to embedd guides
+// tourSchema.pre("save", async function (next) {
+//   const guidesPromises = this.guides.map(async (id) => await User.findById(id));
+//   this.guides = await Promise.all(guidesPromises);
 //   next();
 // });
 
-// tourSchema.post(/^find/, function (docs, next) {
-//   console.log(`Query took ${Date.now() - this.start} milliseconds!`);
-//   next();
-// });
+// Query middleware
+tourSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "guides",
+    select: "-__v -passwordChangedAt",
+  });
+  next();
+});
 
-// // AGGREGATION MIDDLEWARE
+// // Aggregation middleware
 // tourSchema.pre("aggregate", function (next) {
 //   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
 

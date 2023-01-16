@@ -39,7 +39,10 @@ exports.createNewTour = async (req, res, next) => {
 
 exports.getTourById = async (req, res, next) => {
   try {
-    const tourById = await Tour.find({ _id: req.params.id });
+    const tourById = await Tour.find({ _id: req.params.id }).populate({
+      path: "guides",
+      select: "-__v -role",
+    });
 
     res.status(200).json({
       status: "success",
