@@ -17,6 +17,7 @@ process.on("uncaughtException", (err) => {
 
 const tourRouter = require("./routes/toursRoute");
 const userRouter = require("./routes/usersRoute");
+const reviewRouter = require("./routes/reviewsRoute");
 const AppError = require("./utils/appError.js");
 const globalErrorHandler = require("./controllers/errorController.js");
 
@@ -88,6 +89,7 @@ app.use(express.static(`${__dirname}/public`));
 
 app.use("/api/tours", tourRouter);
 app.use("/api/users", userRouter);
+app.use("/api/reviews", reviewRouter);
 
 app.all("*", (req, res, next) => {
   const err = new AppError(`Route ${req.url} does not exist`, 404);

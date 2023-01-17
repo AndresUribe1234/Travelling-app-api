@@ -119,6 +119,13 @@ const tourSchema = new mongoose.Schema(
   { strict: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
+// Virtual populate
+tourSchema.virtual("reviews", {
+  ref: "Review",
+  foreignField: "tour",
+  localField: "_id",
+});
+
 tourSchema.virtual("durationWeeks").get(function () {
   return this.duration / 7;
 });
@@ -145,7 +152,7 @@ tourSchema.post("save", function (doc, next) {
 tourSchema.pre(/^find/, function (next) {
   this.populate({
     path: "guides",
-    select: "-__v -passwordChangedAt",
+    select: "-__v -passwordChangedAt -role",
   });
   next();
 });
