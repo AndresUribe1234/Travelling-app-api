@@ -16,4 +16,6 @@ router
     reviewController.createReview
   );
 
+router.route("/:reviewId").patch(reviewController.updateReview);
+
 module.exports = router;

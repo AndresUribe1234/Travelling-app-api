@@ -21,7 +21,10 @@ exports.getAllReviews = async (req, res, next) => {
 exports.createReview = async (req, res, next) => {
   try {
     if (!req.body.tour) req.body.tour = req.params.tourId;
-    if (!req.body.use) req.body.user = req.user.id;
+    if (!req.body.use) req.body.user = req.user._id;
+    console.log("req.user", req.user);
+    console.log("req.params.tourId", req.params.tourId);
+    console.log("req.body", req.body);
 
     const newReview = await Review.create(req.body);
 
@@ -34,6 +37,25 @@ exports.createReview = async (req, res, next) => {
       "Could not create review. Review needs to have a tour, user, rating and review.",
       404
     );
+    next(error);
+  }
+};
+
+exports.updateReview = async function (req, res, next) {
+  try {
+    const reviewUpdate = await Review.findOneAndUpdate(
+      { _id: req.params.reviewId },
+      {
+        review: req.body.review,
+        rating: req.body.rating,
+      }
+    );
+
+    res.status(200).json({
+      status: "Success: Tour was updated!",
+    });
+  } catch (err) {
+    const error = new AppError("Could not update review.", 404);
     next(error);
   }
 };

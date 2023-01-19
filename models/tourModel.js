@@ -45,12 +45,13 @@ const tourSchema = new mongoose.Schema(
         message: "Difficulty is either easy, medium or difficult",
       },
     },
-    ratingAvg: {
+    ratingsAverage: {
       type: Number,
       min: [1, "Rating must be at least 1"],
       max: [5, "Rating cannot be more than 5"],
+      set: (val) => Math.round(val * 10) / 10,
     },
-    ratingQuantity: {
+    ratingsQuantity: {
       type: Number,
       default: 0,
     },
@@ -118,6 +119,11 @@ const tourSchema = new mongoose.Schema(
   },
   { strict: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+// tourSchema.index({ price: 1 });
+tourSchema.index({ price: 1, ratingsAverage: -1 });
+tourSchema.index({ slug: 1 });
+tourSchema.index({ startLocation: "2dsphere" });
 
 // Virtual populate
 tourSchema.virtual("reviews", {
